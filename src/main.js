@@ -79,9 +79,7 @@ function updateProduct(productId, input) {
   state = {
     ...state,
     products: state.products.map((product) =>
-      product.id === productId
-        ? { ...product, name, category, updatedAt: new Date().toISOString() }
-        : product
+      product.id === productId ? { ...product, name, category, updatedAt: new Date().toISOString() } : product
     ),
   };
   persistState();
@@ -530,19 +528,23 @@ function registerServiceWorker() {
 }
 
 function readBackupFile(file) {
+  return readJsonFile(file, "バックアップファイルを読み込めませんでした。");
+}
+
+function readJsonFile(file, errorMessage) {
   if (typeof file.text === "function") {
     return file.text();
   }
 
   return new Promise((resolve, reject) => {
     if (typeof FileReader === "undefined") {
-      reject(new Error("バックアップファイルを読み込めませんでした。"));
+      reject(new Error(errorMessage));
       return;
     }
 
     const reader = new FileReader();
     reader.addEventListener("load", () => resolve(String(reader.result ?? "")));
-    reader.addEventListener("error", () => reject(new Error("バックアップファイルを読み込めませんでした。")));
+    reader.addEventListener("error", () => reject(new Error(errorMessage)));
     reader.readAsText(file);
   });
 }

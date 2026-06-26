@@ -1,10 +1,10 @@
-const CACHE_NAME = "subscription-management-v19";
+const CACHE_NAME = "subscription-management-v22";
 const APP_SHELL = [
   "./",
   "./index.html",
   "./manifest.webmanifest",
   "./app-icon.svg",
-  "./src/main.js?v=dashboard-url-20260626",
+  "./src/main.js?v=simple-backup-20260627",
   "./src/backup.js?v=backup-20260626",
   "./src/cloudConfig.js",
   "./src/cloudStorage.js",
@@ -13,7 +13,7 @@ const APP_SHELL = [
   "./src/storage.js",
   "./src/selectors.js",
   "./src/calculations.js",
-  "./src/styles.css?v=dashboard-url-20260626"
+  "./src/styles.css?v=simple-backup-20260627"
 ];
 
 self.addEventListener("install", (event) => {

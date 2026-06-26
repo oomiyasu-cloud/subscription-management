@@ -49,13 +49,14 @@ export function getProductDetail(state, productId) {
   const historyPrices = latest ? comparableHistoryPrices(comparable, latest.id) : [];
   const replenishment = latest ? estimateReplenishment(comparable) : { intervalDays: null, nextPurchaseDate: null };
   const unitPrices = comparable.map((purchase) => purchase.unitPrice);
+  const bestUnitPrice = unitPrices.length ? Math.min(...unitPrices) : null;
 
   return {
     product,
     purchases,
     latestUnitPrice: latest?.unitPrice ?? null,
     latestDeal: latest ? judgeDeal(latest.unitPrice, historyPrices) : "first",
-    bestUnitPrice: unitPrices.length ? Math.min(...unitPrices) : null,
+    bestUnitPrice,
     medianUnitPrice: unitPrices.length ? median(unitPrices) : null,
     averageUnitPrice: unitPrices.length ? average(unitPrices) : null,
     averagePurchaseIntervalDays: replenishment.intervalDays,
