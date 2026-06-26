@@ -555,6 +555,7 @@ function buildPurchaseInput({ formData, productId, storeId }) {
     productId,
     purchasedAt: getValue("purchasedAt"),
     storeId,
+    purchaseUrl: getValue("purchaseUrl"),
     quantity: getValue("quantity"),
     unit: getValue("unit"),
     unitCount: getValue("unitCount"),
@@ -601,6 +602,7 @@ function buildPurchaseFormDraft(purchase) {
     taxMode: purchase.taxMode ?? "included",
     purchasedAt: purchase.purchasedAt ?? "",
     storeName: store?.name ?? purchase.storeName ?? "",
+    purchaseUrl: purchase.purchaseUrl ?? "",
   };
 }
 

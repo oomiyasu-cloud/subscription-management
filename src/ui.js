@@ -24,6 +24,7 @@ export function renderApp(viewModel) {
   bindMasterManagement(viewModel.actions);
   bindCloudAccount(viewModel.actions);
   bindBackupActions(viewModel.actions);
+  bindProductSubtabs();
   bindProductLinks(viewModel.actions);
 }
 
@@ -55,11 +56,20 @@ function renderDashboard(dashboard, state) {
   return `
     <section class="view">
       <h2>ホーム</h2>
-      ${renderList("期限切れ", dashboard.overdue, renderSummaryCard)}
-      ${renderList("そろそろ買うもの", dashboard.dueSoon, renderSummaryCard)}
-      ${renderList("最近の購入", dashboard.recentPurchases, (purchase) => renderPurchaseCard(purchase, state))}
-      ${renderList("お買い得", dashboard.goodDeals, (purchase) => renderPurchaseCard(purchase, state))}
-      ${renderList("高めだったもの", dashboard.highPrices, (purchase) => renderPurchaseCard(purchase, state))}
+      ${
+        dashboard.groupedSummaries?.length
+          ? dashboard.groupedSummaries.map((group) => renderDashboardCategory(group)).join("")
+          : '<p class="empty">購入を入力すると商品が表示されます。</p>'
+      }
+    </section>
+  `;
+}
+
+function renderDashboardCategory(group) {
+  return `
+    <section class="panel">
+      <h3>${escapeHtml(group.category)}</h3>
+      ${group.items.length ? group.items.map(renderSummaryCard).join("") : '<p class="empty">まだありません。</p>'}
     </section>
   `;
 }
@@ -148,6 +158,7 @@ function renderEntry(state, draft = {}, editingPurchaseId = null) {
         </label>
         <label>購入場所<input name="storeName" list="stores" value="${escapeHtml(draft.storeName ?? "")}" required /></label>
         <datalist id="stores">${storeOptions}</datalist>
+        <label>URL（任意）<input name="purchaseUrl" type="url" inputmode="url" value="${escapeHtml(draft.purchaseUrl ?? "")}" placeholder="https://example.com" /></label>
         <p class="form-error" data-form-error hidden></p>
         <button class="primary-button" data-purchase-submit type="submit">${isEditing ? "変更を確認" : "判定する"}</button>
       </form>
@@ -189,11 +200,20 @@ function renderProducts(summaries, state) {
   return `
     <section class="view">
       <h2>商品</h2>
-      ${
-        summaries.length
-          ? summaries.map(renderSummaryCard).join("")
-          : '<p class="empty">購入を入力すると商品が表示されます。</p>'
-      }
+      <div class="subtab-list" role="tablist" aria-label="商品管理メニュー">
+        <button class="subtab-button" data-product-subtab="purchases" aria-selected="true" type="button">購入商品</button>
+        <button class="subtab-button" data-product-subtab="products" aria-selected="false" type="button">商品管理</button>
+        <button class="subtab-button" data-product-subtab="categories" aria-selected="false" type="button">カテゴリ管理</button>
+        <button class="subtab-button" data-product-subtab="stores" aria-selected="false" type="button">購入場所管理</button>
+      </div>
+      <section class="subtab-panel" data-product-subtab-panel="purchases">
+        <h3>購入商品管理</h3>
+        ${
+          summaries.length
+            ? summaries.map(renderSummaryCard).join("")
+            : '<p class="empty">購入を入力すると商品が表示されます。</p>'
+        }
+      </section>
       ${renderMasterManagement(state)}
     </section>
   `;
@@ -201,15 +221,15 @@ function renderProducts(summaries, state) {
 
 function renderMasterManagement(state) {
   return `
-    <section class="panel management-panel">
+    <section class="panel management-panel subtab-panel" data-product-subtab-panel="products" hidden>
       <h3>商品管理</h3>
       ${state.products.length ? state.products.map(renderProductManageForm).join("") : '<p class="empty">商品はまだありません。</p>'}
     </section>
-    <section class="panel management-panel">
+    <section class="panel management-panel subtab-panel" data-product-subtab-panel="categories" hidden>
       <h3>カテゴリ管理</h3>
       ${getCategoryNames(state).length ? getCategoryNames(state).map(renderCategoryManageForm).join("") : '<p class="empty">カテゴリはまだありません。</p>'}
     </section>
-    <section class="panel management-panel">
+    <section class="panel management-panel subtab-panel" data-product-subtab-panel="stores" hidden>
       <h3>購入場所管理</h3>
       ${state.stores.length ? state.stores.map(renderStoreManageForm).join("") : '<p class="empty">購入場所はまだありません。</p>'}
     </section>
@@ -371,9 +391,12 @@ function renderSummaryCard(summary) {
         <p>${escapeHtml(summary.category)} / 次回 ${summary.nextPurchaseDate ?? "未定"}</p>
         <dl class="summary-metrics">
           <div><dt>最新</dt><dd>${summary.latestPurchasedAt ?? "なし"}</dd></div>
+          <div><dt>次回</dt><dd>${summary.nextPurchaseDate ?? "なし"}</dd></div>
           <div><dt>直近</dt><dd>${formatUnitPrice(summary.latestUnitPrice)}</dd></div>
           <div><dt>最安</dt><dd>${formatUnitPrice(summary.bestUnitPrice)}</dd></div>
+          <div><dt>平均</dt><dd>${formatUnitPrice(summary.averageUnitPrice)}</dd></div>
           <div><dt>間隔</dt><dd>${formatInterval(summary.averagePurchaseIntervalDays)}</dd></div>
+          <div><dt>回数</dt><dd>${summary.purchaseCount ?? 0}回</dd></div>
         </dl>
       </div>
       <span class="status status-${summary.latestDeal}">${dealLabel(summary.latestDeal)}</span>
@@ -396,6 +419,7 @@ function renderPurchaseCard(purchase, state, options = {}) {
           ${card.deal ? `<span class="status status-${card.deal}">${dealLabel(card.deal)}</span>` : ""}
         </div>
         <p>${purchase.purchasedAt} / ${metaParts.map(escapeHtml).join(" / ")}</p>
+        ${purchase.purchaseUrl ? `<p><a href="${escapeHtml(purchase.purchaseUrl)}" target="_blank" rel="noopener">購入URL</a></p>` : ""}
       </div>
       <div class="purchase-card-prices">
         <strong>${formatTotalPrice(card.totalPaid)}</strong>
@@ -697,6 +721,26 @@ function bindBackupActions(actions) {
     const file = importInput.files?.[0];
     actions.importBackup?.(file);
     importInput.value = "";
+  });
+}
+
+function bindProductSubtabs() {
+  const buttons = document.querySelectorAll("[data-product-subtab]");
+  const panels = document.querySelectorAll("[data-product-subtab-panel]");
+  if (!buttons.length || !panels.length) {
+    return;
+  }
+
+  buttons.forEach((button) => {
+    button.addEventListener("click", () => {
+      const selected = button.dataset.productSubtab;
+      buttons.forEach((item) => {
+        item.setAttribute("aria-selected", String(item.dataset.productSubtab === selected));
+      });
+      panels.forEach((panel) => {
+        panel.hidden = panel.dataset.productSubtabPanel !== selected;
+      });
+    });
   });
 }
 

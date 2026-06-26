@@ -134,7 +134,7 @@ button {
 
 .summary-metrics {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(92px, 1fr));
   gap: 6px 10px;
   margin: 10px 0 0;
 }
@@ -354,6 +354,32 @@ button {
 
 .management-panel {
   margin-top: 22px;
+}
+
+.subtab-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+  gap: 8px;
+  margin: 0 0 16px;
+}
+
+.subtab-button {
+  min-height: 44px;
+  border: 1px solid #bdc7bf;
+  border-radius: 8px;
+  color: #2f3a35;
+  background: #ffffff;
+  font-weight: 700;
+}
+
+.subtab-button[aria-selected="true"] {
+  border-color: #0a6b58;
+  color: #ffffff;
+  background: #0a6b58;
+}
+
+.subtab-panel[hidden] {
+  display: none;
 }
 
 .manage-form {

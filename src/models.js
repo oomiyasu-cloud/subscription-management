@@ -70,6 +70,7 @@ export function createPurchase(input, now = new Date()) {
     productId: input.productId,
     purchasedAt: input.purchasedAt,
     storeId: input.storeId,
+    purchaseUrl: String(input.purchaseUrl ?? "").trim(),
     quantity: Number(input.quantity),
     unit: input.unit,
     unitCount,

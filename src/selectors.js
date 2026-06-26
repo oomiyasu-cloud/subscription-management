@@ -1,4 +1,4 @@
-import { estimateNextPurchaseDate, judgeDeal, median } from "./calculations.js";
+import { judgeDeal, median } from "./calculations.js";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -9,7 +9,8 @@ export function getProductSummaries(state) {
     const latest = sorted[0] ?? null;
     const comparable = latest ? comparablePurchases(purchases, latest.normalizedUnit) : [];
     const historyPrices = latest ? comparableHistoryPrices(comparable, latest.id) : [];
-    const dates = purchases.map((purchase) => purchase.purchasedAt);
+    const replenishment = latest ? estimateReplenishment(comparable) : { intervalDays: null, nextPurchaseDate: null };
+    const unitPrices = comparable.map((purchase) => purchase.unitPrice);
 
     return {
       productId: product.id,
@@ -18,29 +19,21 @@ export function getProductSummaries(state) {
       latestPurchasedAt: latest?.purchasedAt ?? null,
       latestUnitPrice: latest?.unitPrice ?? null,
       latestDeal: latest ? judgeDeal(latest.unitPrice, historyPrices) : "first",
-      bestUnitPrice: comparable.length ? Math.min(...comparable.map((purchase) => purchase.unitPrice)) : null,
-      medianUnitPrice: comparable.length ? median(comparable.map((purchase) => purchase.unitPrice)) : null,
-      averagePurchaseIntervalDays: averagePurchaseIntervalDays(dates),
-      nextPurchaseDate: estimateNextPurchaseDate(dates),
+      bestUnitPrice: unitPrices.length ? Math.min(...unitPrices) : null,
+      medianUnitPrice: unitPrices.length ? median(unitPrices) : null,
+      averageUnitPrice: unitPrices.length ? average(unitPrices) : null,
+      averagePurchaseIntervalDays: replenishment.intervalDays,
+      nextPurchaseDate: replenishment.nextPurchaseDate,
+      purchaseCount: purchases.length,
     };
   });
 }
 
 export function getDashboardData(state, today = todayString()) {
   const summaries = getProductSummaries(state);
-  const dueSoon = summaries
-    .filter((summary) => isDueSoon(summary.nextPurchaseDate, today))
-    .sort((left, right) => compareDates(left.nextPurchaseDate, right.nextPurchaseDate));
-  const overdue = summaries
-    .filter((summary) => isOverdue(summary.nextPurchaseDate, today))
-    .sort((left, right) => compareDates(left.nextPurchaseDate, right.nextPurchaseDate));
 
   return {
-    dueSoon,
-    overdue,
-    recentPurchases: sortPurchasesDesc(state.purchases).slice(0, 5),
-    goodDeals: purchaseHighlights(state, "buy"),
-    highPrices: purchaseHighlights(state, "high"),
+    groupedSummaries: groupSummariesByCategory(summaries, today),
   };
 }
 
@@ -54,16 +47,20 @@ export function getProductDetail(state, productId) {
   const latest = purchases[0] ?? null;
   const comparable = latest ? comparablePurchases(purchases, latest.normalizedUnit) : purchases;
   const historyPrices = latest ? comparableHistoryPrices(comparable, latest.id) : [];
+  const replenishment = latest ? estimateReplenishment(comparable) : { intervalDays: null, nextPurchaseDate: null };
+  const unitPrices = comparable.map((purchase) => purchase.unitPrice);
 
   return {
     product,
     purchases,
     latestUnitPrice: latest?.unitPrice ?? null,
     latestDeal: latest ? judgeDeal(latest.unitPrice, historyPrices) : "first",
-    bestUnitPrice: comparable.length ? Math.min(...comparable.map((purchase) => purchase.unitPrice)) : null,
-    medianUnitPrice: comparable.length ? median(comparable.map((purchase) => purchase.unitPrice)) : null,
-    averagePurchaseIntervalDays: averagePurchaseIntervalDays(purchases.map((purchase) => purchase.purchasedAt)),
-    nextPurchaseDate: estimateNextPurchaseDate(purchases.map((purchase) => purchase.purchasedAt)),
+    bestUnitPrice: unitPrices.length ? Math.min(...unitPrices) : null,
+    medianUnitPrice: unitPrices.length ? median(unitPrices) : null,
+    averageUnitPrice: unitPrices.length ? average(unitPrices) : null,
+    averagePurchaseIntervalDays: replenishment.intervalDays,
+    nextPurchaseDate: replenishment.nextPurchaseDate,
+    purchaseCount: purchases.length,
   };
 }
 
@@ -83,40 +80,95 @@ function comparableHistoryPrices(purchases, latestId) {
   return purchases.filter((purchase) => purchase.id !== latestId).map((purchase) => purchase.unitPrice);
 }
 
-function purchaseHighlights(state, dealType) {
-  return sortPurchasesDesc(
-    state.purchases.flatMap((purchase) => {
-      const history = state.purchases
-        .filter(
-          (item) =>
-            item.productId === purchase.productId &&
-            item.normalizedUnit === purchase.normalizedUnit &&
-            comparePurchaseOrder(item, purchase) < 0
-        )
-        .map((item) => item.unitPrice);
-      const deal = judgeDeal(purchase.unitPrice, history);
-
-      if (deal !== dealType) {
-        return [];
-      }
-
-      return [{ ...purchase, deal }];
-    })
+function estimateReplenishment(purchases) {
+  const sorted = sortPurchasesAsc(purchases).filter(
+    (purchase) => normalizedPurchaseQuantity(purchase) > 0 && purchase.purchasedAt
   );
+  if (sorted.length < 2) {
+    return { intervalDays: null, nextPurchaseDate: null };
+  }
+
+  const dailyUsages = [];
+  for (let index = 1; index < sorted.length; index += 1) {
+    const previous = sorted[index - 1];
+    const current = sorted[index];
+    const days = daysBetween(previous.purchasedAt, current.purchasedAt);
+    if (days > 0) {
+      dailyUsages.push(normalizedPurchaseQuantity(previous) / days);
+    }
+  }
+
+  if (dailyUsages.length === 0) {
+    return { intervalDays: null, nextPurchaseDate: null };
+  }
+
+  const latest = sorted.at(-1);
+  const averageDailyUsage = average(dailyUsages);
+  const intervalDays = Math.round(normalizedPurchaseQuantity(latest) / averageDailyUsage);
+
+  return {
+    intervalDays,
+    nextPurchaseDate: addDays(latest.purchasedAt, intervalDays),
+  };
 }
 
-function averagePurchaseIntervalDays(purchaseDates) {
-  if (purchaseDates.length < 2) {
+function normalizedPurchaseQuantity(purchase) {
+  return Number(purchase.normalizedQuantity ?? purchase.quantity ?? 0);
+}
+
+function groupSummariesByCategory(summaries, today) {
+  const groups = new Map();
+  summaries.forEach((summary) => {
+    const category = summary.category || "日用品";
+    groups.set(category, [...(groups.get(category) ?? []), summary]);
+  });
+
+  return [...groups.entries()]
+    .sort(([left], [right]) => left.localeCompare(right, "ja"))
+    .map(([category, items]) => ({
+      category,
+      items: items
+        .map((item) => ({ ...item, scheduleStatus: scheduleStatus(item.nextPurchaseDate, today) }))
+        .sort(compareSummaryForDashboard),
+    }));
+}
+
+function compareSummaryForDashboard(left, right) {
+  const statusOrder = { overdue: 0, dueSoon: 1, normal: 2, none: 3 };
+  const statusComparison = statusOrder[left.scheduleStatus] - statusOrder[right.scheduleStatus];
+  if (statusComparison !== 0) {
+    return statusComparison;
+  }
+
+  return String(left.name).localeCompare(String(right.name), "ja");
+}
+
+function scheduleStatus(nextPurchaseDate, today) {
+  if (nextPurchaseDate === null) {
+    return "none";
+  }
+
+  if (isOverdue(nextPurchaseDate, today)) {
+    return "overdue";
+  }
+
+  if (isDueSoon(nextPurchaseDate, today)) {
+    return "dueSoon";
+  }
+
+  return "normal";
+}
+
+function average(values) {
+  if (values.length === 0) {
     return null;
   }
 
-  const sortedTimes = purchaseDates.map(parseDateAtUTC).sort((left, right) => left - right);
-  const intervals = [];
-  for (let index = 1; index < sortedTimes.length; index += 1) {
-    intervals.push((sortedTimes[index] - sortedTimes[index - 1]) / DAY_MS);
-  }
+  return Number((values.reduce((sum, value) => sum + Number(value), 0) / values.length).toFixed(4));
+}
 
-  return Math.round(intervals.reduce((sum, days) => sum + days, 0) / intervals.length);
+function sortPurchasesAsc(purchases) {
+  return [...purchases].sort(comparePurchaseOrder);
 }
 
 function daysBetween(fromDate, toDate) {
@@ -144,6 +196,15 @@ function isOverdue(nextPurchaseDate, today) {
 
 function compareDates(left, right) {
   return String(left).localeCompare(String(right));
+}
+
+function addDays(dateString, days) {
+  const timestamp = parseDateAtUTC(dateString) + days * DAY_MS;
+  const date = new Date(timestamp);
+  const year = date.getUTCFullYear();
+  const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(date.getUTCDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 function comparePurchaseOrder(left, right) {
