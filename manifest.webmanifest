@@ -1,0 +1,21 @@
+{
+  "name": "定期購入管理",
+  "short_name": "定期購入",
+  "description": "日用品の定期購入と買い時を管理するWebアプリ",
+  "lang": "ja",
+  "id": "./",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f6f7f3",
+  "theme_color": "#0a6b58",
+  "icons": [
+    {
+      "src": "./app-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
