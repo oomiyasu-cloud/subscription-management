@@ -57,7 +57,8 @@ export function createPurchase(input, now = new Date()) {
   const isMultipack = input.isMultipack === true || input.isMultipack === "true" || input.isMultipack === "on";
   const packQuantity = isMultipack ? normalizePositiveNumber(input.packQuantity, 1) : 1;
   const packUnit = isMultipack ? String(input.packUnit || "個") : "";
-  const normalized = normalizeQuantity(Number(input.quantity) * unitCount * packQuantity, input.unit);
+  const normalizedStockQuantity = normalizeQuantity(Number(input.quantity) * unitCount * packQuantity, input.unit);
+  const normalizedPricingQuantity = normalizeQuantity(Number(input.quantity) * packQuantity, input.unit);
   const taxRate = normalizeTaxRate(input.taxRate);
   const normalizedTaxIncludedPrice = toTaxIncludedPrice(
     Number(input.priceInput),
@@ -81,10 +82,10 @@ export function createPurchase(input, now = new Date()) {
     taxMode: input.taxMode,
     taxRate,
     normalizedTaxIncludedPrice,
-    normalizedQuantity: normalized.quantity,
-    normalizedUnit: normalized.unit,
-    unitKind: normalized.kind,
-    unitPrice: calculateUnitPrice(normalizedTaxIncludedPrice, normalized.quantity),
+    normalizedQuantity: normalizedStockQuantity.quantity,
+    normalizedUnit: normalizedStockQuantity.unit,
+    unitKind: normalizedStockQuantity.kind,
+    unitPrice: calculateUnitPrice(normalizedTaxIncludedPrice, normalizedPricingQuantity.quantity),
     createdAt: timestamp,
     updatedAt: timestamp,
   };

@@ -5,7 +5,7 @@ import { getDashboardData, getProductDetail, getProductSummaries } from "./selec
 import { cloudConfig } from "./cloudConfig.js";
 import { createCloudClient } from "./cloudStorage.js";
 import { loadState, saveState } from "./storage.js";
-import { getPurchaseDraft, hasRequiredPurchaseNames, renderApp } from "./ui.js";
+import { getPurchaseDraft, hasRequiredPurchaseNames, renderApp } from "./ui.js?v=home-search-20260629";
 
 let state = loadState();
 let route = { name: "dashboard", productId: null };

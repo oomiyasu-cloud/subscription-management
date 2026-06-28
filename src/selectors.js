@@ -1,4 +1,4 @@
-import { judgeDeal, median } from "./calculations.js";
+import { judgeDeal, median, normalizeQuantity } from "./calculations.js";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -11,6 +11,7 @@ export function getProductSummaries(state) {
     const historyPrices = latest ? comparableHistoryPrices(comparable, latest.id) : [];
     const replenishment = latest ? estimateReplenishment(comparable) : { intervalDays: null, nextPurchaseDate: null };
     const unitPrices = comparable.map((purchase) => purchase.unitPrice);
+    const displayBasis = latest ? displayBasisForPurchase(latest) : { quantity: null, unit: product.defaultUnit ?? "" };
 
     return {
       productId: product.id,
@@ -22,6 +23,12 @@ export function getProductSummaries(state) {
       bestUnitPrice: unitPrices.length ? Math.min(...unitPrices) : null,
       medianUnitPrice: unitPrices.length ? median(unitPrices) : null,
       averageUnitPrice: unitPrices.length ? average(unitPrices) : null,
+      displayQuantity: displayBasis.quantity,
+      displayUnit: displayBasis.unit,
+      displayUnitLabel: displayUnitLabel(displayBasis),
+      latestDisplayPrice: displayPrice(latest?.unitPrice ?? null, displayBasis),
+      bestDisplayPrice: displayPrice(unitPrices.length ? Math.min(...unitPrices) : null, displayBasis),
+      averageDisplayPrice: displayPrice(unitPrices.length ? average(unitPrices) : null, displayBasis),
       averagePurchaseIntervalDays: replenishment.intervalDays,
       nextPurchaseDate: replenishment.nextPurchaseDate,
       purchaseCount: purchases.length,
@@ -117,6 +124,30 @@ function normalizedPurchaseQuantity(purchase) {
   return Number(purchase.normalizedQuantity ?? purchase.quantity ?? 0);
 }
 
+function displayBasisForPurchase(purchase) {
+  return {
+    quantity: Number.isFinite(Number(purchase.quantity)) ? Number(purchase.quantity) : null,
+    unit: purchase.unit ?? purchase.normalizedUnit ?? "",
+  };
+}
+
+function displayUnitLabel(displayBasis) {
+  if (!displayBasis.quantity || !displayBasis.unit) {
+    return "単位未設定";
+  }
+
+  return `${formatQuantity(displayBasis.quantity)}${displayBasis.unit}あたり`;
+}
+
+function displayPrice(unitPrice, displayBasis) {
+  if (unitPrice === null || unitPrice === undefined || !displayBasis.quantity || !displayBasis.unit) {
+    return null;
+  }
+
+  const normalized = normalizeQuantity(displayBasis.quantity, displayBasis.unit);
+  return Number((Number(unitPrice) * normalized.quantity).toFixed(2));
+}
+
 function groupSummariesByCategory(summaries, today) {
   const groups = new Map();
   summaries.forEach((summary) => {
@@ -166,6 +197,10 @@ function average(values) {
   }
 
   return Number((values.reduce((sum, value) => sum + Number(value), 0) / values.length).toFixed(4));
+}
+
+function formatQuantity(value) {
+  return Number(value).toLocaleString("ja-JP", { maximumFractionDigits: 2 });
 }
 
 function sortPurchasesAsc(purchases) {

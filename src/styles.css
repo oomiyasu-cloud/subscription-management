@@ -127,9 +127,52 @@ button {
   font-size: 14px;
 }
 
+.summary-card {
+  align-items: flex-start;
+  gap: 10px;
+}
+
+[data-product-search-text][hidden] {
+  display: none !important;
+}
+
+[data-search-group][hidden] {
+  display: none !important;
+}
+
+.product-initial {
+  display: inline-grid;
+  flex: 0 0 38px;
+  inline-size: 38px;
+  block-size: 38px;
+  place-items: center;
+  border-radius: 999px;
+  font-size: 15px;
+  font-weight: 800;
+}
+
 .summary-card-body {
   min-width: 0;
   flex: 1 1 auto;
+}
+
+.summary-line-title {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.summary-line-meta,
+.summary-line-price {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.summary-line-price {
+  color: #28332e;
+  font-weight: 700;
 }
 
 .summary-metrics {
@@ -213,6 +256,28 @@ button {
 .purchase-form {
   display: grid;
   gap: 12px;
+}
+
+.search-field {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: end;
+  gap: 6px;
+  margin: 0 0 12px;
+  color: #4d5a54;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.search-field label {
+  display: grid;
+  gap: 6px;
+}
+
+.search-status {
+  margin: -4px 0 12px;
+  color: #65706a;
+  font-size: 13px;
 }
 
 .purchase-form label,

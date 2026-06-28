@@ -25,6 +25,7 @@ export function renderApp(viewModel) {
   bindCloudAccount(viewModel.actions);
   bindBackupActions(viewModel.actions);
   bindProductSubtabs();
+  bindProductSearch();
   bindProductLinks(viewModel.actions);
 }
 
@@ -56,6 +57,7 @@ function renderDashboard(dashboard, state) {
   return `
     <section class="view">
       <h2>ホーム</h2>
+      ${renderSearchForm()}
       ${
         dashboard.groupedSummaries?.length
           ? dashboard.groupedSummaries.map((group) => renderDashboardCategory(group)).join("")
@@ -67,10 +69,22 @@ function renderDashboard(dashboard, state) {
 
 function renderDashboardCategory(group) {
   return `
-    <section class="panel">
+    <section class="panel" data-search-group>
       <h3>${escapeHtml(group.category)}</h3>
       ${group.items.length ? group.items.map(renderSummaryCard).join("") : '<p class="empty">まだありません。</p>'}
     </section>
+  `;
+}
+
+function renderSearchForm() {
+  return `
+    <form class="search-field" data-product-search-form>
+      <label>商品を検索
+        <input data-product-search-input type="search" autocomplete="off" placeholder="商品名・カテゴリ" />
+      </label>
+      <button class="secondary-button compact-button" type="submit">検索</button>
+    </form>
+    <p class="search-status" data-product-search-status hidden></p>
   `;
 }
 
@@ -140,7 +154,7 @@ function renderEntry(state, draft = {}, editingPurchaseId = null) {
           </label>
         </div>
         <div class="form-grid">
-          <label>価格<input name="priceInput" type="number" min="1" step="1" value="${escapeHtml(draft.priceInput ?? "")}" required /></label>
+          <label>価格（1セット）<input name="priceInput" type="number" min="1" step="1" value="${escapeHtml(draft.priceInput ?? "")}" required /></label>
           <label>税
             <select name="taxMode">
               ${renderSelectOption("included", "税込", draft.taxMode ?? "included")}
@@ -200,6 +214,7 @@ function renderProducts(summaries, state) {
   return `
     <section class="view">
       <h2>商品</h2>
+      ${renderSearchForm()}
       <div class="subtab-list" role="tablist" aria-label="商品管理メニュー">
         <button class="subtab-button" data-product-subtab="purchases" aria-selected="true" type="button">購入商品</button>
         <button class="subtab-button" data-product-subtab="products" aria-selected="false" type="button">商品管理</button>
@@ -237,8 +252,10 @@ function renderMasterManagement(state) {
 }
 
 function renderProductManageForm(product) {
+  const searchText = `${product.name} ${product.category}`.trim();
+
   return `
-    <form class="manage-form" data-product-manage-form data-managed-product-id="${product.id}">
+    <form class="manage-form" data-product-search-text="${escapeHtml(searchText)}" data-product-manage-form data-managed-product-id="${product.id}">
       <label>商品名<input name="name" value="${escapeHtml(product.name)}" required /></label>
       <label>カテゴリ<input name="category" value="${escapeHtml(product.category)}" required /></label>
       <div class="manage-actions">
@@ -251,7 +268,7 @@ function renderProductManageForm(product) {
 
 function renderCategoryManageForm(category) {
   return `
-    <form class="manage-form" data-category-manage-form data-category-name="${escapeHtml(category)}">
+    <form class="manage-form" data-product-search-text="${escapeHtml(category)}" data-category-manage-form data-category-name="${escapeHtml(category)}">
       <label>カテゴリ<input name="category" value="${escapeHtml(category)}" required /></label>
       <div class="manage-actions">
         <button class="secondary-button compact-button" type="submit">変更</button>
@@ -263,7 +280,7 @@ function renderCategoryManageForm(category) {
 
 function renderStoreManageForm(store) {
   return `
-    <form class="manage-form" data-store-manage-form data-store-id="${store.id}">
+    <form class="manage-form" data-product-search-text="${escapeHtml(store.name)}" data-store-manage-form data-store-id="${store.id}">
       <label>購入場所<input name="name" value="${escapeHtml(store.name)}" required /></label>
       <div class="manage-actions">
         <button class="secondary-button compact-button" type="submit">変更</button>
@@ -384,22 +401,15 @@ function renderList(title, items, renderer) {
 }
 
 function renderSummaryCard(summary) {
+  const searchText = `${summary.name} ${summary.category}`.trim();
   return `
-    <article class="item-card item-card-button" data-product-id="${summary.productId}" tabindex="0" role="button">
+    <article class="item-card summary-card item-card-button" data-product-id="${summary.productId}" data-product-search-text="${escapeHtml(searchText)}" tabindex="0" role="button">
+      <span class="product-initial" style="${productAccentStyle(summary)}" aria-hidden="true">${escapeHtml(productInitial(summary.name))}</span>
       <div class="summary-card-body">
-        <strong>${escapeHtml(summary.name)}</strong>
-        <p>${escapeHtml(summary.category)} / 次回 ${summary.nextPurchaseDate ?? "未定"}</p>
-        <dl class="summary-metrics">
-          <div><dt>最新</dt><dd>${summary.latestPurchasedAt ?? "なし"}</dd></div>
-          <div><dt>次回</dt><dd>${summary.nextPurchaseDate ?? "なし"}</dd></div>
-          <div><dt>直近</dt><dd>${formatUnitPrice(summary.latestUnitPrice)}</dd></div>
-          <div><dt>最安</dt><dd>${formatUnitPrice(summary.bestUnitPrice)}</dd></div>
-          <div><dt>平均</dt><dd>${formatUnitPrice(summary.averageUnitPrice)}</dd></div>
-          <div><dt>間隔</dt><dd>${formatInterval(summary.averagePurchaseIntervalDays)}</dd></div>
-          <div><dt>回数</dt><dd>${summary.purchaseCount ?? 0}回</dd></div>
-        </dl>
+        <strong class="summary-line-title">${escapeHtml(summary.name)}</strong>
+        <p class="summary-line-meta">${escapeHtml(summary.category)} / 最新 ${summary.latestPurchasedAt ?? "なし"} / 次回 ${summary.nextPurchaseDate ?? "なし"} / 間隔 ${formatInterval(summary.averagePurchaseIntervalDays)}</p>
+        <p class="summary-line-price">直近 ${formatTotalPrice(summary.latestDisplayPrice)} / 最安 ${formatTotalPrice(summary.bestDisplayPrice)} / 平均 ${formatTotalPrice(summary.averageDisplayPrice)} / ${escapeHtml(summary.displayUnitLabel ?? "単位未設定")}</p>
       </div>
-      <span class="status status-${summary.latestDeal}">${dealLabel(summary.latestDeal)}</span>
     </article>
   `;
 }
@@ -740,8 +750,78 @@ function bindProductSubtabs() {
       panels.forEach((panel) => {
         panel.hidden = panel.dataset.productSubtabPanel !== selected;
       });
+      document.querySelector("[data-product-search-input]")?.dispatchEvent(new Event("input", { bubbles: true }));
     });
   });
+}
+
+function bindProductSearch() {
+  const form = document.querySelector("[data-product-search-form]");
+  const input = document.querySelector("[data-product-search-input]");
+  if (!input) {
+    return;
+  }
+
+  const root = input.closest?.(".view") ?? document;
+  const status = root.querySelector?.("[data-product-search-status]");
+  const syncSearch = () => {
+    const visibleCount = filterProductSearchTargets(root, input.value);
+    updateProductSearchStatus(status, input.value, visibleCount);
+  };
+
+  form?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    syncSearch();
+  });
+  input.addEventListener("input", syncSearch);
+  input.addEventListener("search", syncSearch);
+  syncSearch();
+}
+
+export function filterProductSearchTargets(root, queryValue) {
+  const query = String(queryValue ?? "").trim().toLocaleLowerCase("ja-JP");
+  const searchRoot = getActiveProductSearchRoot(root);
+  let visibleCount = 0;
+
+  searchRoot.querySelectorAll("[data-product-search-text]").forEach((target) => {
+    const text = String(target.dataset.productSearchText ?? "").toLocaleLowerCase("ja-JP");
+    const isVisible = !query || text.includes(query);
+    target.hidden = !isVisible;
+    if (isVisible) {
+      visibleCount += 1;
+    }
+  });
+  updateSearchGroups(searchRoot, query);
+
+  return visibleCount;
+}
+
+function getActiveProductSearchRoot(root) {
+  const panels = Array.from(root.querySelectorAll?.("[data-product-subtab-panel]") ?? []);
+  return panels.find((panel) => !panel.hidden) ?? root;
+}
+
+function updateSearchGroups(root, query) {
+  root.querySelectorAll("[data-search-group]").forEach((group) => {
+    const targets = Array.from(group.querySelectorAll("[data-product-search-text]"));
+    group.hidden = Boolean(query) && targets.length > 0 && targets.every((target) => target.hidden);
+  });
+}
+
+function updateProductSearchStatus(status, queryValue, visibleCount) {
+  if (!status) {
+    return;
+  }
+
+  const query = String(queryValue ?? "").trim();
+  if (!query) {
+    status.hidden = true;
+    status.textContent = "";
+    return;
+  }
+
+  status.hidden = false;
+  status.textContent = visibleCount ? `${visibleCount}件見つかりました。` : "該当する商品がありません。";
 }
 
 function bindProductLinks(actions) {
@@ -792,6 +872,28 @@ function renderSelectOption(value, label, selectedValue) {
 
 function renderValueOptions(values, selectedValue = "") {
   return values.map((value) => renderSelectOption(value, value, selectedValue)).join("");
+}
+
+function productInitial(name) {
+  const trimmed = String(name ?? "").trim();
+  return trimmed ? [...trimmed][0] : "?";
+}
+
+function productAccentStyle(summary) {
+  const palettes = [
+    ["#dff3ea", "#26604f"],
+    ["#e2eefb", "#315a7d"],
+    ["#f2e7fb", "#66477b"],
+    ["#fde8ef", "#84475b"],
+    ["#fff0c9", "#745b20"],
+    ["#e7f0d8", "#506631"],
+  ];
+  const [background, color] = palettes[hashString(summary.productId || summary.name) % palettes.length];
+  return `background:${background};color:${color}`;
+}
+
+function hashString(value) {
+  return [...String(value ?? "")].reduce((hash, char) => hash + char.codePointAt(0), 0);
 }
 
 function isMultipackEnabled(draft) {

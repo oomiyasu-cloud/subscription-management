@@ -1,3 +1,5 @@
+import { calculateUnitPrice, normalizeQuantity } from "./calculations.js";
+
 const STORAGE_KEY = "subscription-management:v1";
 
 export function defaultState() {
@@ -44,7 +46,9 @@ export function normalizeState(parsed) {
 
   return {
     products: Array.isArray(parsed.products) ? parsed.products : fallback.products,
-    purchases: Array.isArray(parsed.purchases) ? parsed.purchases : fallback.purchases,
+    purchases: Array.isArray(parsed.purchases)
+      ? parsed.purchases.map(normalizeStoredPurchase)
+      : fallback.purchases,
     stores: Array.isArray(parsed.stores) ? parsed.stores : fallback.stores,
     settings,
   };
@@ -56,4 +60,42 @@ export function saveState(state) {
 
 export function resetState() {
   localStorage.removeItem(STORAGE_KEY);
+}
+
+function normalizeStoredPurchase(purchase) {
+  if (!purchase || typeof purchase !== "object" || Array.isArray(purchase)) {
+    return purchase;
+  }
+
+  const quantity = Number(purchase.quantity);
+  const totalPrice = Number(purchase.normalizedTaxIncludedPrice ?? purchase.priceInput);
+
+  if (!Number.isFinite(quantity) || quantity <= 0 || !purchase.unit) {
+    return purchase;
+  }
+
+  const unitCount = normalizePositiveNumber(purchase.unitCount, 1);
+  const isMultipack =
+    purchase.isMultipack === true || purchase.isMultipack === "true" || purchase.isMultipack === "on";
+  const packQuantity = isMultipack ? normalizePositiveNumber(purchase.packQuantity, 1) : 1;
+  const stockQuantity = normalizeQuantity(quantity * unitCount * packQuantity, purchase.unit);
+  const pricingQuantity = normalizeQuantity(quantity * packQuantity, purchase.unit);
+
+  return {
+    ...purchase,
+    unitCount,
+    isMultipack,
+    packQuantity,
+    normalizedQuantity: stockQuantity.quantity,
+    normalizedUnit: stockQuantity.unit,
+    unitKind: stockQuantity.kind,
+    unitPrice: Number.isFinite(totalPrice)
+      ? calculateUnitPrice(totalPrice, pricingQuantity.quantity)
+      : purchase.unitPrice,
+  };
+}
+
+function normalizePositiveNumber(value, fallback) {
+  const numericValue = Number(value);
+  return Number.isFinite(numericValue) && numericValue > 0 ? numericValue : fallback;
 }
