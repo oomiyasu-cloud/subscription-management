@@ -1,19 +1,19 @@
-const CACHE_NAME = "subscription-management-v26";
+const CACHE_NAME = "subscription-management-v27";
 const APP_SHELL = [
   "./",
   "./index.html",
   "./manifest.webmanifest",
   "./app-icon.svg",
-  "./src/main.js?v=home-search-20260629",
+  "./src/main.js?v=mobile-card-fit-20260629",
   "./src/backup.js?v=backup-20260626",
   "./src/cloudConfig.js",
   "./src/cloudStorage.js",
-  "./src/ui.js?v=home-search-20260629",
+  "./src/ui.js?v=mobile-card-fit-20260629",
   "./src/models.js?v=submit-fix-20260626",
   "./src/storage.js",
   "./src/selectors.js",
   "./src/calculations.js",
-  "./src/styles.css?v=home-search-20260629"
+  "./src/styles.css?v=mobile-card-fit-20260629"
 ];
 
 self.addEventListener("install", (event) => {

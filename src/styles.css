@@ -12,6 +12,7 @@
 body {
   margin: 0;
   min-width: 320px;
+  overflow-x: hidden;
   background: #f6f7f3;
 }
 
@@ -48,6 +49,7 @@ button {
 .content {
   padding: 16px max(16px, env(safe-area-inset-right)) calc(92px + env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
   max-width: 920px;
+  min-width: 0;
   margin: 0 auto 84px;
 }
 
@@ -105,6 +107,7 @@ button {
   justify-content: space-between;
   gap: 12px;
   width: 100%;
+  min-width: 0;
   margin: 0 0 8px;
   padding: 12px;
   border: 1px solid #d9ded7;
@@ -128,6 +131,8 @@ button {
 }
 
 .summary-card {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
   align-items: flex-start;
   gap: 10px;
 }
@@ -153,25 +158,24 @@ button {
 
 .summary-card-body {
   min-width: 0;
-  flex: 1 1 auto;
+  inline-size: 100%;
 }
 
 .summary-line-title {
   display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
 }
 
 .summary-line-meta,
 .summary-line-price {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
 }
 
 .summary-line-price {
   color: #28332e;
+  font-size: 13px;
   font-weight: 700;
 }
 
@@ -545,6 +549,27 @@ button {
   .item-card {
     align-items: flex-start;
     flex-direction: column;
+    gap: 8px;
+    padding: 10px;
+  }
+
+  .summary-card {
+    grid-template-columns: 34px minmax(0, 1fr);
+  }
+
+  .product-initial {
+    inline-size: 34px;
+    block-size: 34px;
+    font-size: 14px;
+  }
+
+  .summary-line-title {
+    font-size: 15px;
+  }
+
+  .summary-line-meta,
+  .summary-line-price {
+    font-size: 12px;
   }
 
   .purchase-card-prices {
